@@ -34,11 +34,17 @@ log_run() {  # esegue e salva il log in logs/
 
 case "${1:-aiuto}" in
   setup)
-    if ! command -v python3 >/dev/null; then
-      echo "Serve Python 3.10+: installalo da https://www.python.org/downloads/ e riprova."; exit 1
+    BASE=""
+    for c in python3.12 python3.13 python3.11 python3.10 python3; do
+      if command -v "$c" >/dev/null && "$c" -c 'import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)' 2>/dev/null; then
+        BASE="$(command -v "$c")"; break
+      fi
+    done
+    if [ -z "$BASE" ]; then
+      echo "Serve Python 3.10 o più recente. Con Homebrew: brew install python@3.12"; exit 1
     fi
-    python3 -c 'import sys; assert sys.version_info >= (3,10), "Serve Python 3.10 o più recente"'
-    [ -d "$VENV" ] || python3 -m venv "$VENV"
+    echo "Uso $BASE ($("$BASE" --version))"
+    [ -d "$VENV" ] || "$BASE" -m venv "$VENV"
     "$PY" -m pip install -q --upgrade pip
     "$PY" -m pip install -q torch                     # su Mac Apple Silicon include l'accelerazione MPS
     "$PY" -m pip install -q -r requirements.txt transformers pytest
@@ -56,7 +62,7 @@ case "${1:-aiuto}" in
     PORTA="${PORTA:-8000}"
     echo "App su http://localhost:$PORTA  (Ctrl+C per fermare)"
     (sleep 1; open "http://localhost:$PORTA" 2>/dev/null || true) &
-    python3 -m http.server "$PORTA" --directory site --bind 127.0.0.1
+    "${PY:-python3}" -m http.server "$PORTA" --directory site --bind 127.0.0.1
     ;;
   pubblica)
     git add site/data state
