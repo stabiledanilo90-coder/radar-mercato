@@ -181,7 +181,7 @@ async function viewPanoramica(soloTitoli) {
 }
 
 async function viewTitolo(id, scelta) {
-  const [d, news, ov] = await Promise.all([get(`forecast/${id}.json`), get('news.json'), get('overview.json')]);
+  const [d, news, ov, btAll] = await Promise.all([get(`forecast/${id}.json`), get('news.json'), get('overview.json'), get('backtest.json')]);
   const q = ov?.titoli.find((t) => t.id === id) || {};
   const nome = d?.nome || q.nome || id;
   const ord = ['ore', 'giorni', 'settimane', 'anno'].filter((k) => d?.orizzonti?.[k]);
@@ -189,7 +189,7 @@ async function viewTitolo(id, scelta) {
   const o = d?.orizzonti?.[att];
   const col = (q.var24 ?? 0) >= 0 ? C.up : C.dn;
   const mieNews = (news?.notizie || []).filter((n) => n.titoli.includes(id)).slice(0, 6);
-  const bt = d?.backtest?.[att];
+  const bt = btAll?.titoli?.[id]?.[att] || d?.backtest?.[att];
   const etich = { ore: 'Ore', giorni: 'Giorni', settimane: 'Settimane', anno: '1 anno' };
   let riass = '';
   if (o) {

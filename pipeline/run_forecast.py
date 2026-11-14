@@ -49,10 +49,6 @@ def main(fai_backtest=False, solo=None):
             out["orizzonti"][o] = prev
             out["anomalie"] += F.anomalie(df, o)
             track.aggiungi(reg, t["id"], o, prev["riassunto"], prev["scadenza"])
-            if fai_backtest:
-                log(f"   backtest {o}…")
-                bt_tutti.setdefault(t["id"], {})[o] = F.giudizio(
-                    F.backtest(predictor, df, c["pred_len"], n_finestre=cfg.get("finestre_backtest", 30)))
             log(f"   {o}: mediana {prev['riassunto']['var_p50']:+.1f}%  fascia {prev['riassunto']['var_p10']:+.1f}% / {prev['riassunto']['var_p90']:+.1f}%")
         if t["id"] not in prezzi_verifica and giornaliero is not None:
             prezzi_verifica[t["id"]] = giornaliero
@@ -66,7 +62,6 @@ def main(fai_backtest=False, solo=None):
         write_json(DATA / "forecast" / f"{t['id']}.json", out)
     track.verifica(reg, prezzi_verifica)
     track.salva(reg)
-    write_json(STATE / "backtest.json", bt_tutti)
     write_json(STATE / "eventi.json", eventi)
     write_json(DATA / "pagella.json", {"aggiornato": now_iso(), **track.pagella(reg, bt_tutti)})
     log("Fatto.")
@@ -74,7 +69,7 @@ def main(fai_backtest=False, solo=None):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--backtest", action="store_true")
+    ap.add_argument("--backtest", action="store_true", help="(non più usato: vedi run_backtest)")
     ap.add_argument("--solo", nargs="*")
     a = ap.parse_args()
     main(a.backtest, a.solo)

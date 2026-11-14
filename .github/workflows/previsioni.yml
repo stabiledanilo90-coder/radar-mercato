@@ -37,19 +37,28 @@ jobs:
           pip install -q -r requirements.txt
           git clone -q --depth 1 https://github.com/shiyu-coder/Kronos.git Kronos
       - name: Previsioni
-        run: |
-          if [ "${{ github.event.schedule }}" = "0 3 * * 0" ] || [ "${{ inputs.backtest }}" = "true" ]; then
-            python -m pipeline.run_forecast --backtest
-          else
-            python -m pipeline.run_forecast
-          fi
-      - name: Salva
+        run: python -m pipeline.run_forecast
+      - name: Salva previsioni
         run: |
           git config user.name "radar-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add site/data state
           git diff --cached --quiet && exit 0
           git commit -qm "Dati: previsioni [skip ci]"
+          for i in 1 2 3; do git pull -q --rebase origin main && git push -q && break; sleep 5; done
+      - name: Test sul passato (a pezzi, max 150 minuti)
+        if: github.event.schedule == '0 3 * * 0' || inputs.backtest
+        continue-on-error: true
+        timeout-minutes: 170
+        env:
+          BUDGET_MIN: "150"
+        run: python -m pipeline.run_backtest
+      - name: Salva test
+        if: always()
+        run: |
+          git add site/data state
+          git diff --cached --quiet && exit 0
+          git commit -qm "Dati: test sul passato [skip ci]"
           for i in 1 2 3; do git pull -q --rebase origin main && git push -q && break; sleep 5; done
   pubblica:
     needs: previsioni
