@@ -15,7 +15,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: dati
+  group: previsioni
   cancel-in-progress: false
 jobs:
   previsioni:
