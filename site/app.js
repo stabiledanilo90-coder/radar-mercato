@@ -101,7 +101,10 @@ function assi(lo, hi, X0, X1, Y) {
 }
 function graficoCandele(o, w = 760, h = 400) {
   const u = Math.random().toString(36).slice(2, 7), r = rng(o.storia.length * 7 + 3);
-  const hist = o.storia, fut = o.candele, F = o.fascia, n = hist.length, m = fut.length, last = hist[n - 1][4];
+  const hist = o.storia, F = o.fascia, n = hist.length, last = hist[n - 1][4];
+  const linea = !o.candele;
+  const fut = o.candele || F.p50.map((v, i) => { const p = i ? F.p50[i - 1] : last; return [p, Math.max(p, v), Math.min(p, v), v]; });
+  const m = fut.length;
   const vals = hist.flatMap((c) => [c[2], c[3]]).concat(F.p10, F.p90, fut.flatMap((c) => [c[1], c[2]]));
   let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
   const L = 10, R = 70, T = 16, B = 30, pw = w - L - R, ph = h - T - B, cw = pw / (n + m);
@@ -120,7 +123,11 @@ function graficoCandele(o, w = 760, h = 400) {
   });
   let pts = '', cand = `<g filter="url(#g${u})">`;
   const step = 0.55 / Math.max(m, 1);
-  fut.forEach((c, i) => {
+  if (linea) {
+    const seq = [last, ...F.p50];
+    seq.forEach((v, k) => { pts += particelle(Array.from({ length: 5 }, () => [xs[k] + (r() - 0.5) * 6, Y(v) + (r() - 0.5) * 6]), 0.1 + k * step, r, 50); });
+    cand += `<polyline class="draw" pathLength="1" points="${xs.map((x, i) => `${x.toFixed(1)},${Y(seq[i]).toFixed(1)}`).join(' ')}" fill="none" stroke="${C.vio}" stroke-width="2" stroke-dasharray="1" style="--d:.35s"/>`;
+  } else fut.forEach((c, i) => {
     const x = X(n + i), d = 0.15 + i * step, y1 = Math.min(Y(c[0]), Y(c[3])), hh = Math.max(Math.abs(Y(c[0]) - Y(c[3])), 1.5);
     const body = Array.from({ length: 9 }, () => [x + (r() - 0.5) * bw, y1 + r() * hh]);
     const wick = Array.from({ length: 4 }, () => [x, Y(c[1]) + r() * (Y(c[2]) - Y(c[1]))]);
@@ -194,7 +201,7 @@ async function viewTitolo(id, scelta) {
   let riass = '';
   if (o) {
     const R = o.riassunto, periodo = { ore: 'Nelle prossime 24 ore', giorni: 'Nelle prossime 4 settimane', settimane: 'Nei prossimi 3 mesi', anno: 'Tra 12 mesi' }[att];
-    const extra = att === 'anno' ? `Non è una previsione: sono 5.000 anni simulati dalle oscillazioni degli ultimi ${nf(R.anni_usati, 0)} anni. In ${nf(R.prob_perdita, 0)} casi su 100 si finisce in perdita; il calo tipico dal picco durante l'anno è ${pct(R.calo_tipico, 0)}.`
+    const extra = o.metodo === 'statistica' ? 'Fascia statistica: indica l\'ampiezza tipica dei movimenti, non una direzione. Kronos qui non è affidabile.' : att === 'anno' ? `Non è una previsione: sono 5.000 anni simulati dalle oscillazioni degli ultimi ${nf(R.anni_usati, 0)} anni. In ${nf(R.prob_perdita, 0)} casi su 100 si finisce in perdita; il calo tipico dal picco durante l'anno è ${pct(R.calo_tipico, 0)}.`
       : `Scenari in salita: ${nf(R.prob_salita, 0)}%. ${R.prob_salita > 40 && R.prob_salita < 60 ? 'Praticamente metà e metà: nessuna direzione chiara.' : ''} ${(d.eventi || []).length ? 'Attenzione: in arrivo i conti del trimestre, il modello non li conosce.' : ''}`;
     riass = `<span class="label">In parole semplici</span><p class="plain">${periodo}, <b style="color:${C.vio}">8 scenari su 10</b> finiscono tra <b>${prezzo(R.p10)}</b> e <b>${prezzo(R.p90)}</b>.</p>
     <div class="trio"><div><span>Pessimista</span><span class="dn">${pct(R.var_p10, 0)}</span></div><div><span>Mediano</span><span>${pct(R.var_p50, 0)}</span></div><div><span>Ottimista</span><span class="up">${pct(R.var_p90, 0)}</span></div></div>
@@ -214,8 +221,9 @@ async function viewTitolo(id, scelta) {
   ${!d ? primiDati() : `<div class="dbody">
    <section class="card chartcard" aria-label="Grafico e scenari"><div class="row" style="flex-wrap:wrap;gap:12px">
     <div class="seg" role="tablist" aria-label="Orizzonte">${ord.map((k) => `<button role="tab" aria-selected="${k === att}" onclick="location.hash='#/t/${id}/${k}'">${etich[k]}</button>`).join('')}</div>
-    <div class="legend"><span><i class="sw" style="background:${C.vio}"></i>${att === 'anno' ? 'Scenari' : 'Candele previste'}</span><span><i class="sw" style="width:16px;background:rgba(167,139,250,.35)"></i>8 scenari su 10</span></div></div>
+    <div class="legend"><span><i class="sw" style="background:${C.vio}"></i>${att === 'anno' ? 'Scenari' : o?.metodo === 'statistica' ? 'Movimento tipico (statistica)' : 'Candele previste (Kronos)'}</span><span><i class="sw" style="width:16px;background:rgba(167,139,250,.35)"></i>8 scenari su 10</span></div></div>
     <div class="chart">${o ? (att === 'anno' ? graficoAnno(o) : graficoCandele(o)) : ''}</div>
+    ${o?.metodo === 'statistica' ? `<div class="note" style="color:${C.ora}">${ic('info', 16, C.ora)}<span>Qui Kronos ha dato una previsione incoerente (${esc(o.scarto_kronos)}), quindi l'ho scartata. La fascia mostra quanto si muove di solito questo titolo in questo periodo, senza indicare una direzione.</span></div>` : ''}
     <div class="note">${ic('info', 16)}Più la fascia viola è larga, meno il futuro è prevedibile. Guarda la fascia, non la singola candela.</div>
     ${(d.anomalie || []).length ? `<div class="note" style="color:${C.ora}">${ic('bell', 16, C.ora)}${d.anomalie.map((a) => esc(a.testo)).join(' · ')}</div>` : ''}
    </section>

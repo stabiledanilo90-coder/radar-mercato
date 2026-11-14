@@ -44,12 +44,14 @@ def main(fai_backtest=False, solo=None):
                 giornaliero = df
             if o == "ore":
                 prezzi_verifica[t["id"]] = df
-            prev = F.previsione_json(predictor, df, c, cfg.get("scenari", 40))
+            prev = F.previsione_json(predictor, df, c, cfg.get("scenari", 40), lookback=cfg.get("lookback", F.LOOKBACK))
             prev["storia"] = P.candele_json(df, c["mostra"])
             out["orizzonti"][o] = prev
             out["anomalie"] += F.anomalie(df, o)
-            track.aggiungi(reg, t["id"], o, prev["riassunto"], prev["scadenza"])
-            log(f"   {o}: mediana {prev['riassunto']['var_p50']:+.1f}%  fascia {prev['riassunto']['var_p10']:+.1f}% / {prev['riassunto']['var_p90']:+.1f}%")
+            track.aggiungi(reg, t["id"], o, prev["riassunto"], prev["scadenza"], prev["metodo"])
+            if prev["metodo"] != "kronos":
+                log(f"   ! Kronos scartato: {prev['scarto_kronos']}")
+            log(f"   {o} [{prev['metodo']}]: mediana {prev['riassunto']['var_p50']:+.1f}%  fascia {prev['riassunto']['var_p10']:+.1f}% / {prev['riassunto']['var_p90']:+.1f}%")
         if t["id"] not in prezzi_verifica and giornaliero is not None:
             prezzi_verifica[t["id"]] = giornaliero
         if giornaliero is not None:

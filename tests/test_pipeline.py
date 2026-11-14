@@ -83,3 +83,26 @@ def test_notizie_valutazione_e_campanello():
     assert c["livello"] in ("rosso", "arancio")
     assert N.DA_CONFERMARE.search(items[2]["titolo"])
     assert N._in_elenco("uk.reuters.com", ["reuters.com"]) and not N._in_elenco("reuters.com.fake.io", ["reuters.com"])
+
+
+class KronosCheTornaAllaMedia:
+    """Simula il difetto visto dal vivo: le previsioni saltano alla media della finestra."""
+    def predict_batch(self, df_list, x_timestamp_list, y_timestamp_list, pred_len, T, top_p, sample_count, verbose):
+        out = []
+        for d, y in zip(df_list, y_timestamp_list):
+            m = d["close"].mean()
+            c = m * np.exp(rng.normal(0, 0.003, pred_len))
+            out.append(pd.DataFrame({"open": c, "high": c * 1.001, "low": c * .999, "close": c, "volume": 1.0, "amount": 1.0}, index=y))
+        return out
+
+
+def test_scarta_previsioni_incoerenti():
+    # prezzo che sale molto: la media della finestra è lontana dall'ultimo prezzo
+    ts = pd.date_range("2020-01-01", periods=900, freq="D")
+    c = 100 * np.exp(np.linspace(0, 1.2, 900) + rng.normal(0, 0.01, 900))
+    raw = pd.DataFrame({"Open": c, "High": c * 1.01, "Low": c * .99, "Close": c, "Volume": 1e6}, index=ts)
+    d = prices.pulisci(raw)
+    p = F.previsione_json(KronosCheTornaAllaMedia(), d, prices.ORIZZONTI["giorni"], 20)
+    assert p["metodo"] == "statistica" and p["candele"] is None and "scarto_kronos" in p
+    ok = F.previsione_json(FintoKronos(), d, prices.ORIZZONTI["giorni"], 20)
+    assert ok["metodo"] == "kronos"

@@ -17,14 +17,14 @@ def salva(reg):
     write_json(PERCORSO, [r for r in reg if r["creato"] >= limite])
 
 
-def aggiungi(reg, tid, orizzonte, riass, scadenza):
+def aggiungi(reg, tid, orizzonte, riass, scadenza, metodo="kronos"):
     oggi = pd.Timestamp.now(tz="UTC").tz_localize(None)
     # una sola previsione per titolo/orizzonte/giorno
     chiave = f"{tid}|{orizzonte}|{oggi:%Y-%m-%d}"
     reg[:] = [r for r in reg if r.get("chiave") != chiave]
     reg.append({"chiave": chiave, "creato": oggi.isoformat(), "titolo": tid, "orizzonte": orizzonte,
                 "inizio": riass["prezzo"], "p10": riass["p10"], "p50": riass["p50"], "p90": riass["p90"],
-                "scadenza": scadenza, "reale": None})
+                "scadenza": scadenza, "reale": None, "metodo": metodo})
 
 
 def verifica(reg, prezzi):
@@ -52,8 +52,9 @@ def pagella(reg, backtest_per):
         out.setdefault(r["titolo"], {}).setdefault(r["orizzonte"], {"verificate": 0, "dir_ok": None, "in_banda": None})
     for (t, o) in {(r["titolo"], r["orizzonte"]) for r in fatte}:
         g = [r for r in fatte if r["titolo"] == t and r["orizzonte"] == o]
-        out[t][o] = {"verificate": len(g),
-                     "dir_ok": round(100 * sum(x["dir_ok"] for x in g) / len(g), 1),
+        gk = [r for r in g if r.get("metodo", "kronos") == "kronos"]  # la direzione conta solo per Kronos
+        out[t][o] = {"verificate": len(gk),
+                     "dir_ok": round(100 * sum(x["dir_ok"] for x in gk) / len(gk), 1) if gk else None,
                      "in_banda": round(100 * sum(x["in_banda"] for x in g) / len(g), 1)}
     for t, per_o in (backtest_per or {}).items():
         for o, b in per_o.items():

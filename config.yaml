@@ -7,11 +7,14 @@
 # oppure "NeoQuasar/Kronos-small" (più veloce).
 modello: NeoQuasar/Kronos-base
 
+# Candele di storia date al modello (più corta = meno "ritorno alla media" esagerato)
+lookback: 256
+
 # Quanti scenari futuri generare per ogni previsione (più = fascia più affidabile)
 scenari: 40
 
 # Backtest: quante prove sul passato per ogni titolo e orizzonte (lo fa una volta a settimana)
-finestre_backtest: 30
+finestre_backtest: 20
 
 # Titoli seguiti. Per ognuno:
 #   yahoo: simbolo su Yahoo Finance (prezzi)

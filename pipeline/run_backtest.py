@@ -30,7 +30,7 @@ def main():
         if df is None:
             continue
         log(f"backtest {t['id']} {o}…")
-        g = F.giudizio(F.backtest(predictor, df, P.ORIZZONTI[o]["pred_len"], n_finestre=cfg.get("finestre_backtest", 30)))
+        g = F.giudizio(F.backtest(predictor, df, P.ORIZZONTI[o]["pred_len"], n_finestre=cfg.get("finestre_backtest", 20), lookback=cfg.get("lookback", F.LOOKBACK)))
         g["fatto"] = now_iso()
         bt.setdefault(t["id"], {})[o] = g
         write_json(STATE / "backtest.json", bt)

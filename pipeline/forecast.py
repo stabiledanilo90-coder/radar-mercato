@@ -7,7 +7,7 @@ import pandas as pd
 from .common import log
 from .prices import timestamp_futuri
 
-LOOKBACK = 400
+LOOKBACK = 256  # finestra più corta: Kronos tende a tornare alla media della finestra
 
 
 # ------------------------------------------------------------------ modello
@@ -68,22 +68,61 @@ def riassunto(ultimo, q, ch):
     }
 
 
-def previsione_json(predictor, storico, cfg_or, n_scenari):
+def fascia_statistica(storico, pred_len, n=3000, storia=1500, blocco=5, seed=0):
+    """Scenari costruiti ricampionando a blocchi i movimenti reali del titolo (ultimi ~1500 periodi).
+    Non dice dove andrà il prezzo: dice quanto si muove di solito in quel tempo."""
+    c = storico["close"].to_numpy(dtype=float)[-storia:]
+    r = np.diff(np.log(c))
+    r = r - r.mean()  # nessuna direzione: solo l'ampiezza tipica dei movimenti
+    rng = np.random.default_rng(seed)
+    nb = math.ceil(pred_len / blocco)
+    inizi = rng.integers(0, max(1, len(r) - blocco), size=(n, nb))
+    idx = (inizi[:, :, None] + np.arange(blocco)[None, None, :]).reshape(n, -1)[:, :pred_len]
+    perc = c[-1] * np.exp(np.cumsum(r[idx], axis=1))
+    return {f"p{p}": np.percentile(perc, p, axis=0) for p in (10, 25, 50, 75, 90)}, perc
+
+
+def controllo_coerenza(storico, q_kr, ch_kr, q_st):
+    """Scarta le previsioni Kronos fuori scala: salto iniziale enorme o movimento mediano
+    ben oltre quello che il titolo fa nel 90% dei casi reali."""
+    last = float(storico["close"].iloc[-1])
+    r = np.diff(np.log(storico["close"].to_numpy(dtype=float)[-500:]))
+    sd = float(np.std(r)) or 1e-9
+    salto = abs(np.log(np.median(ch_kr[:, 0]) / last)) / sd
+    mov_kr = abs(np.log(np.median(ch_kr[:, -1]) / last))
+    mov_st = max(abs(np.log(q_st["p90"][-1] / last)), abs(np.log(q_st["p10"][-1] / last)))
+    motivi = []
+    if salto > 4:
+        motivi.append(f"la prima candela prevista salta di {salto:.0f} volte il movimento tipico")
+    if mov_kr > 1.5 * mov_st:
+        motivi.append("il movimento previsto è molto più grande di quelli reali del titolo")
+    return motivi
+
+
+def previsione_json(predictor, storico, cfg_or, n_scenari, lookback=LOOKBACK):
     pl = cfg_or["pred_len"]
-    y_ts, q, med, ch = scenari(predictor, storico, pl, n=n_scenari)
     ultimo = float(storico["close"].iloc[-1])
-    return {
-        "label": cfg_or["label"],
-        "futuro": [t.isoformat() for t in y_ts],
-        "fascia": {k: [round(float(v), 6) for v in arr] for k, arr in q.items()},
-        "candele": [[round(float(med[c][i]), 6) for c in ("open", "high", "low", "close")] for i in range(pl)],
-        "riassunto": riassunto(ultimo, q, ch),
-        "scadenza": y_ts.iloc[-1].isoformat(),
-    }
+    q_st, perc_st = fascia_statistica(storico, pl)
+    y_ts, q, med, ch = scenari(predictor, storico, pl, n=n_scenari, lookback=lookback)
+    motivi = controllo_coerenza(storico, q, ch, q_st)
+    out = {"label": cfg_or["label"], "futuro": [t.isoformat() for t in y_ts], "scadenza": y_ts.iloc[-1].isoformat(),
+           "statistica": {"fascia": {k: [round(float(v), 6) for v in a] for k, a in q_st.items()},
+                          "riassunto": riassunto(ultimo, q_st, perc_st)}}
+    if motivi:
+        out.update({"metodo": "statistica", "scarto_kronos": "; ".join(motivi),
+                    "fascia": out["statistica"]["fascia"], "candele": None,
+                    "riassunto": out["statistica"]["riassunto"],
+                    "kronos_scartato": {"var_p50": riassunto(ultimo, q, ch)["var_p50"]}})
+    else:
+        out.update({"metodo": "kronos",
+                    "fascia": {k: [round(float(v), 6) for v in arr] for k, arr in q.items()},
+                    "candele": [[round(float(med[c][i]), 6) for c in ("open", "high", "low", "close")] for i in range(pl)],
+                    "riassunto": riassunto(ultimo, q, ch)})
+    return out
 
 
 # ------------------------------------------------------------------ backtest
-def backtest(predictor, storico, pred_len, n_finestre=30, n_scenari=12, lookback=LOOKBACK):
+def backtest(predictor, storico, pred_len, n_finestre=20, n_scenari=8, lookback=LOOKBACK):
     righe = []
     n = len(storico)
     for k in range(n_finestre, 0, -1):
@@ -94,13 +133,17 @@ def backtest(predictor, storico, pred_len, n_finestre=30, n_scenari=12, lookback
         reale = storico.iloc[origine:origine + pred_len]
         if len(reale) < pred_len:
             continue
+        q_st, _ = fascia_statistica(passato, pred_len, n=800)
         _, q, _, ch = scenari(predictor, passato, pred_len, n=n_scenari, lookback=lookback)
+        scartata = bool(controllo_coerenza(passato, q, ch, q_st))
         p0 = float(passato["close"].iloc[-1]); rf = float(reale["close"].iloc[-1]); mf = float(np.median(ch[:, -1]))
         righe.append({
             "dir_ok": bool(np.sign(mf - p0) == np.sign(rf - p0)),
             "err_mod": 100 * abs(mf - rf) / rf,
             "err_fermo": 100 * abs(p0 - rf) / rf,
             "in_banda": bool(q["p10"][-1] <= rf <= q["p90"][-1]),
+            "in_banda_stat": bool(q_st["p10"][-1] <= rf <= q_st["p90"][-1]),
+            "scartata": scartata,
         })
     return righe
 
@@ -112,9 +155,13 @@ def giudizio(righe):
     d = 100 * sum(r["dir_ok"] for r in righe) / n
     em = float(np.mean([r["err_mod"] for r in righe])); ef = float(np.mean([r["err_fermo"] for r in righe]))
     cop = 100 * sum(r["in_banda"] for r in righe) / n
+    cop_st = 100 * sum(r.get("in_banda_stat", False) for r in righe) / n
+    scart = 100 * sum(r.get("scartata", False) for r in righe) / n
     # intervallo di confidenza 95% sulla percentuale di direzioni giuste
     se = 100 * math.sqrt(max(d / 100 * (1 - d / 100), 1e-9) / n)
-    if n < 20:
+    if scart >= 30:
+        verdetto, liv = f"Kronos dà risultati incoerenti nel {scart:.0f}% dei casi: uso la fascia statistica", "grigio"
+    elif n < 20:
         verdetto, liv = f"Solo {n} prove: troppo poche per giudicare", "grigio"
     elif d - 1.96 * se > 50 and em < ef:
         verdetto, liv = "Meglio del caso, in modo misurabile", "verde"
@@ -123,7 +170,8 @@ def giudizio(righe):
     else:
         verdetto, liv = "Come lanciare una moneta: non usarlo per decidere", "grigio"
     return {"prove": n, "dir_ok": round(d, 1), "margine": round(1.96 * se, 1), "err_modello": round(em, 2),
-            "err_prezzo_fermo": round(ef, 2), "in_banda": round(cop, 1), "verdetto": verdetto, "livello": liv}
+            "err_prezzo_fermo": round(ef, 2), "in_banda": round(cop, 1), "in_banda_stat": round(cop_st, 1),
+            "scartate": round(scart, 1), "verdetto": verdetto, "livello": liv}
 
 
 # ------------------------------------------------------------------ 1 anno
