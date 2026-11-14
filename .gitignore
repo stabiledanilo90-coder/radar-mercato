@@ -6,3 +6,4 @@ Kronos/
 .venv/
 logs/
 .env
+.DS_Store
