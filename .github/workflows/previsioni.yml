@@ -1,0 +1,56 @@
+name: Previsioni Kronos
+on:
+  schedule:
+    - cron: "30 22 * * 1-5"    # dopo la chiusura di Wall Street
+    - cron: "30 10 * * 0,6"    # weekend (crypto)
+    - cron: "0 3 * * 0"        # domenica: anche il backtest
+  workflow_dispatch:
+    inputs:
+      backtest:
+        description: "Rifai anche il test sul passato (lento)"
+        type: boolean
+        default: false
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: dati
+  cancel-in-progress: false
+jobs:
+  previsioni:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-kronos-v1
+      - name: Installa
+        run: |
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q -r requirements.txt
+          git clone -q --depth 1 https://github.com/shiyu-coder/Kronos.git Kronos
+      - name: Previsioni
+        run: |
+          if [ "${{ github.event.schedule }}" = "0 3 * * 0" ] || [ "${{ inputs.backtest }}" = "true" ]; then
+            python -m pipeline.run_forecast --backtest
+          else
+            python -m pipeline.run_forecast
+          fi
+      - name: Salva
+        run: |
+          git config user.name "radar-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data state
+          git diff --cached --quiet && exit 0
+          git commit -qm "Dati: previsioni [skip ci]"
+          for i in 1 2 3; do git pull -q --rebase origin main && git push -q && break; sleep 5; done
+  pubblica:
+    needs: previsioni
+    uses: ./.github/workflows/deploy.yml

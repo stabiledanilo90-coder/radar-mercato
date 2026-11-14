@@ -1,0 +1,88 @@
+# ============================================================
+#  RADAR MERCATO — impostazioni
+#  Puoi modificare questo file direttamente da GitHub (icona matita).
+# ============================================================
+
+# Modello di previsione: "NeoQuasar/Kronos-base" (più preciso, più lento)
+# oppure "NeoQuasar/Kronos-small" (più veloce).
+modello: NeoQuasar/Kronos-base
+
+# Quanti scenari futuri generare per ogni previsione (più = fascia più affidabile)
+scenari: 40
+
+# Backtest: quante prove sul passato per ogni titolo e orizzonte (lo fa una volta a settimana)
+finestre_backtest: 30
+
+# Titoli seguiti. Per ognuno:
+#   yahoo: simbolo su Yahoo Finance (prezzi)
+#   tipo: azione | crypto
+#   ricerca: parole per cercare le notizie (in inglese: le agenzie scrivono in inglese)
+#   sito_ufficiale: domini ufficiali dell'azienda/progetto (fonte livello 1)
+titoli:
+  - id: NVDA
+    nome: NVIDIA
+    yahoo: NVDA
+    tipo: azione
+    ricerca: Nvidia
+    sito_ufficiale: [nvidianews.nvidia.com, investor.nvidia.com, blogs.nvidia.com]
+  - id: BTC
+    nome: Bitcoin
+    yahoo: BTC-USD
+    tipo: crypto
+    ricerca: Bitcoin
+    sito_ufficiale: [bitcoin.org, bitcoincore.org]
+  - id: ADA
+    nome: Cardano
+    yahoo: ADA-USD
+    tipo: crypto
+    ricerca: Cardano ADA
+    sito_ufficiale: [cardanofoundation.org, iohk.io, intersectmbo.org, cardano.org]
+  - id: DOT
+    nome: Polkadot
+    yahoo: DOT-USD
+    tipo: crypto
+    ricerca: Polkadot DOT
+    sito_ufficiale: [polkadot.com, polkadot.network, web3.foundation, parity.io]
+  - id: SPCX
+    nome: SpaceX
+    yahoo: SPCX
+    tipo: azione
+    ricerca: SpaceX
+    sito_ufficiale: [spacex.com]
+  - id: ASML
+    nome: ASML
+    yahoo: ASML
+    tipo: azione
+    ricerca: ASML
+    sito_ufficiale: [asml.com]
+  - id: AMZN
+    nome: Amazon
+    yahoo: AMZN
+    tipo: azione
+    ricerca: Amazon stock
+    sito_ufficiale: [aboutamazon.com, ir.aboutamazon.com]
+
+# Fonti livello 2: solo queste agenzie e testate. Tutto il resto viene scartato.
+agenzie:
+  - reuters.com
+  - bloomberg.com
+  - apnews.com
+  - ft.com
+  - wsj.com
+  - cnbc.com
+  - ilsole24ore.com
+  - marketwatch.com
+  - barrons.com
+  - nikkei.com
+  - coindesk.com        # solo per crypto
+  - theblock.co         # solo per crypto
+
+# Fonti che non vengono mai usate
+esclusi: [x.com, twitter.com, reddit.com, facebook.com, instagram.com, tiktok.com, youtube.com, t.me, medium.com]
+
+# Radar occasioni (stile GameStop): soglie dei 5 segnali
+occasioni:
+  scommesse_ribasso_min: 0.20     # 20% delle azioni disponibili vendute allo scoperto
+  giorni_per_ricomprare_min: 5
+  volume_x_min: 2.0               # volume recente rispetto alla media
+  max_candidati: 12

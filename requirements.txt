@@ -1,0 +1,11 @@
+yfinance>=0.2.65
+pandas>=2.1
+numpy>=1.26
+pyyaml>=6
+requests>=2.31
+feedparser>=6.0
+einops>=0.7
+huggingface_hub>=0.23
+safetensors>=0.4
+tqdm
+matplotlib
