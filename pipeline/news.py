@@ -16,7 +16,7 @@ import requests
 
 from .common import STATE, log, read_json, write_json
 
-SEC_UA = os.environ.get("SEC_USER_AGENT", "radar-mercato (github.com/stabiledanilo90-coder/radar-mercato)")
+SEC_UA = os.environ.get("SEC_USER_AGENT") or "RadarMercato/1.0 stabiledanilo90-coder@users.noreply.github.com"  # la SEC chiede un contatto email
 HTTP = requests.Session()
 HTTP.headers.update({"User-Agent": SEC_UA, "Accept-Encoding": "gzip, deflate"})
 

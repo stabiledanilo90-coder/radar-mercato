@@ -87,20 +87,31 @@ def fascia_statistica(storico, pred_len, n=3000, storia=1500, blocco=5, seed=0):
     return {f"p{p}": np.percentile(perc, p, axis=0) for p in (10, 25, 50, 75, 90)}, perc
 
 
-def controllo_coerenza(storico, q_kr, ch_kr, q_st):
-    """Scarta le previsioni Kronos fuori scala: salto iniziale enorme o movimento mediano
-    ben oltre quello che il titolo fa nel 90% dei casi reali."""
+def controllo_coerenza(storico, q_kr, ch_kr, q_st, lookback=LOOKBACK):
+    """Scarta le previsioni Kronos fuori scala. Tre segnali del difetto "ritorno alla media":
+    1) la prima candela salta molto rispetto al movimento tipico;
+    2) il movimento previsto è molto più grande di quelli reali del titolo;
+    3) la previsione è troppo sicura (la fascia esclude il prezzo di oggi) e va oltre il movimento tipico;
+    4) la previsione punta verso la media della finestra, che è lontana dal prezzo di oggi."""
     last = float(storico["close"].iloc[-1])
     r = np.diff(np.log(storico["close"].to_numpy(dtype=float)[-500:]))
     sd = float(np.std(r)) or 1e-9
+    med_fine = float(np.median(ch_kr[:, -1]))
     salto = abs(np.log(np.median(ch_kr[:, 0]) / last)) / sd
-    mov_kr = abs(np.log(np.median(ch_kr[:, -1]) / last))
+    mov_kr = np.log(med_fine / last)
     mov_st = max(abs(np.log(q_st["p90"][-1] / last)), abs(np.log(q_st["p10"][-1] / last)))
+    media = float(storico["close"].tail(lookback).mean())
+    verso_media = np.log(media / last)
     motivi = []
     if salto > 4:
         motivi.append(f"la prima candela prevista salta di {salto:.0f} volte il movimento tipico")
-    if mov_kr > 1.5 * mov_st:
+    if abs(mov_kr) > 1.5 * mov_st:
         motivi.append("il movimento previsto è molto più grande di quelli reali del titolo")
+    esclude_oggi = q_kr["p10"][-1] > last or q_kr["p90"][-1] < last
+    if esclude_oggi and abs(mov_kr) > 0.6 * mov_st:
+        motivi.append("è troppo sicura: esclude che il prezzo resti vicino a oggi")
+    if abs(verso_media) > 0.8 * mov_st and np.sign(mov_kr) == np.sign(verso_media) and abs(mov_kr) > 0.4 * abs(verso_media):
+        motivi.append("punta verso la media degli ultimi mesi, un difetto noto del modello")
     return motivi
 
 
@@ -109,7 +120,7 @@ def previsione_json(predictor, storico, cfg_or, n_scenari, lookback=LOOKBACK):
     ultimo = float(storico["close"].iloc[-1])
     q_st, perc_st = fascia_statistica(storico, pl)
     y_ts, q, med, ch = scenari(predictor, storico, pl, n=n_scenari, lookback=lookback)
-    motivi = controllo_coerenza(storico, q, ch, q_st)
+    motivi = controllo_coerenza(storico, q, ch, q_st, lookback)
     out = {"label": cfg_or["label"], "futuro": [t.isoformat() for t in y_ts], "scadenza": y_ts.iloc[-1].isoformat(),
            "statistica": {"fascia": {k: [round(float(v), 6) for v in a] for k, a in q_st.items()},
                           "riassunto": riassunto(ultimo, q_st, perc_st)}}
@@ -140,7 +151,7 @@ def backtest(predictor, storico, pred_len, n_finestre=20, n_scenari=8, lookback=
             continue
         q_st, _ = fascia_statistica(passato, pred_len, n=800)
         _, q, _, ch = scenari(predictor, passato, pred_len, n=n_scenari, lookback=lookback)
-        scartata = bool(controllo_coerenza(passato, q, ch, q_st))
+        scartata = bool(controllo_coerenza(passato, q, ch, q_st, lookback))
         p0 = float(passato["close"].iloc[-1]); rf = float(reale["close"].iloc[-1]); mf = float(np.median(ch[:, -1]))
         righe.append({
             "dir_ok": bool(np.sign(mf - p0) == np.sign(rf - p0)),
