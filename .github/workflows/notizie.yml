@@ -1,8 +1,7 @@
 name: Notizie e prezzi
 on:
-  schedule:
-    - cron: "*/10 * * * *"     # ogni 10 minuti (GitHub può ritardare di qualche minuto)
-    - cron: "40 13 * * 1-5"    # radar occasioni, giorni di borsa
+  # Esecuzione automatica DISATTIVATA: il progetto ora gira in locale sul Mac (vedi AGENTS.md).
+  # Resta solo l'avvio manuale come riserva.
   workflow_dispatch:
     inputs:
       occasioni:

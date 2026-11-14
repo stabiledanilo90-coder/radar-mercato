@@ -14,10 +14,15 @@ LOOKBACK = 256  # finestra più corta: Kronos tende a tornare alla media della f
 def carica_kronos(nome_modello):
     import sys
     import torch
-    sys.path.insert(0, "Kronos")  # clonato dal workflow
+    import os
+    sys.path.insert(0, os.environ.get("KRONOS_DIR", "Kronos"))  # clonato da ./radar.sh setup
     from model import Kronos, KronosTokenizer, KronosPredictor
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    torch.set_num_threads(max(1, torch.get_num_threads()))
+    if torch.cuda.is_available():
+        device = "cuda:0"
+    elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+        device = "mps"  # Mac con chip Apple (M1–M4): molto più veloce della CPU
+    else:
+        device = "cpu"
     tok = KronosTokenizer.from_pretrained("NeoQuasar/Kronos-Tokenizer-base")
     mod = Kronos.from_pretrained(nome_modello)
     try:

@@ -10,16 +10,18 @@ App personale per seguire i propri titoli con:
 
 > ⚠️ Non è un consulente finanziario. Nessun modello prevede il mercato con certezza. L'app non compra e non vende nulla.
 
-## Come funziona
+## Come si usa (in locale sul Mac)
 
-| Cosa | Quando | Dove |
-|---|---|---|
-| Notizie, prezzi, campanelli, avvisi | ogni ~10 minuti | `.github/workflows/notizie.yml` |
-| Radar occasioni | giorni di borsa, 14:40 italiane | stesso workflow |
-| Previsioni Kronos | ogni sera dopo Wall Street, e nel weekend per le crypto | `.github/workflows/previsioni.yml` |
-| Test sul passato (backtest) | domenica notte | stesso workflow |
+```bash
+cd ~/Desktop/radar
+./radar.sh setup        # una volta sola
+./radar.sh tutto        # notizie + previsioni
+./radar.sh servi        # apre l'app su http://localhost:8000
+```
 
-I risultati finiscono in `site/data/` e l'app (`site/`) viene pubblicata su GitHub Pages.
+Tutti i comandi: `./radar.sh`. Istruzioni per gli agenti AI: `AGENTS.md`.
+
+Gli avvii automatici su GitHub Actions sono disattivati; i workflow restano avviabili a mano come riserva.
 
 ## Personalizzare
 
@@ -29,7 +31,7 @@ Tutto si regola in **`config.yaml`**: titoli seguiti, modello Kronos, numero di 
 
 1. Su Telegram scrivi a **@BotFather** → `/newbot` → copia il *token*.
 2. Scrivi un messaggio al tuo nuovo bot, poi apri `https://api.telegram.org/bot<TOKEN>/getUpdates` e copia il numero `chat.id`.
-3. Nel progetto GitHub: **Settings → Secrets and variables → Actions → New repository secret**: `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID`.
+3. In locale: crea il file `.env` nella cartella con `TELEGRAM_TOKEN=...` e `TELEGRAM_CHAT_ID=...` (non viene caricato su GitHub).
 
 ## Sviluppo
 
@@ -37,5 +39,5 @@ Tutto si regola in **`config.yaml`**: titoli seguiti, modello Kronos, numero di 
 pip install -r requirements.txt pytest
 python -m pytest -q          # test senza rete
 python -m pipeline.run_news  # notizie
-python -m pipeline.run_forecast --solo BTC   # richiede Kronos clonato in ./Kronos
+./radar.sh previsioni --solo BTC
 ```

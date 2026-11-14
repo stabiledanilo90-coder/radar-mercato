@@ -3,3 +3,6 @@ __pycache__/
 Kronos/
 .cache/
 *.tmp
+.venv/
+logs/
+.env

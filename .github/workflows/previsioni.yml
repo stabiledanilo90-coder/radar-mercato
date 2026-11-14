@@ -1,9 +1,7 @@
 name: Previsioni Kronos
 on:
-  schedule:
-    - cron: "30 22 * * 1-5"    # dopo la chiusura di Wall Street
-    - cron: "30 10 * * 0,6"    # weekend (crypto)
-    - cron: "0 3 * * 0"        # domenica: anche il backtest
+  # Esecuzione automatica DISATTIVATA: il progetto ora gira in locale sul Mac (vedi AGENTS.md).
+  # Resta solo l'avvio manuale come riserva.
   workflow_dispatch:
     inputs:
       backtest:
