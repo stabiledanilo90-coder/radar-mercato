@@ -30,6 +30,9 @@ def main(occasioni=False):
         nuove += N.notizie_web(t, cfg)
         if t["tipo"] == "azione":
             nuove += N.notizie_sec(t)
+    per_id = {t["id"]: t for t in titoli}
+    nuove = [it for it in nuove if any(N.rilevante(it, per_id[x]) for x in it["titoli"] if x in per_id)]
+    vecchie = {k: v for k, v in vecchie.items() if any(N.rilevante(v, per_id[x]) for x in v["titoli"] if x in per_id)}
     da_valutare = []
     for it in nuove:
         if it["id"] in vecchie:

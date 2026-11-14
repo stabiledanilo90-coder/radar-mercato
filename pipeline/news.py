@@ -216,6 +216,22 @@ def notizie_web(titolo, cfg, giorni=2):
     return out
 
 
+RUMORE = re.compile(
+    r"\b(intern(ship)?|technician|careers?|job opening|jobs|hiring|vacanc|"
+    r"shift|nights|full[- ]time|part[- ]time|apply now|cookie|privacy policy|brand guidelines|newsletter)\b", re.I)
+
+
+def rilevante(it, titolo_cfg):
+    """Scarta annunci di lavoro, pagine generiche e notizie che non citano davvero il titolo."""
+    t = it["titolo"]
+    if it["livello"] in ("uff", "bal") and it.get("fonte", "").startswith("SEC"):
+        return True
+    if len(t.split()) < 5 or RUMORE.search(t):
+        return False
+    parole = titolo_cfg.get("parole")
+    return not parole or re.search(parole, t, re.I) is not None
+
+
 # ---------------------------------------------------------------- tono e importanza
 class Tono:
     """FinBERT (modello specializzato in notizie finanziarie). Se non disponibile usa parole chiave."""

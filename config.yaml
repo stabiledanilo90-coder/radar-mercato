@@ -20,42 +20,49 @@ finestre_backtest: 30
 #   sito_ufficiale: domini ufficiali dell'azienda/progetto (fonte livello 1)
 titoli:
   - id: NVDA
+    parole: "nvidia|huang|nvda"     # la notizia deve citarne almeno una
     nome: NVIDIA
     yahoo: NVDA
     tipo: azione
     ricerca: Nvidia
     sito_ufficiale: [nvidianews.nvidia.com, investor.nvidia.com, blogs.nvidia.com]
   - id: BTC
+    parole: "bitcoin|btc"     # la notizia deve citarne almeno una
     nome: Bitcoin
     yahoo: BTC-USD
     tipo: crypto
     ricerca: Bitcoin
     sito_ufficiale: [bitcoin.org, bitcoincore.org]
   - id: ADA
+    parole: "cardano|\\bada\\b"     # la notizia deve citarne almeno una
     nome: Cardano
     yahoo: ADA-USD
     tipo: crypto
     ricerca: Cardano ADA
     sito_ufficiale: [cardanofoundation.org, iohk.io, intersectmbo.org, cardano.org]
   - id: DOT
+    parole: "polkadot|\\bdot\\b"     # la notizia deve citarne almeno una
     nome: Polkadot
     yahoo: DOT-USD
     tipo: crypto
     ricerca: Polkadot DOT
     sito_ufficiale: [polkadot.com, polkadot.network, web3.foundation, parity.io]
   - id: SPCX
+    parole: "spacex|starship|starlink|musk"     # la notizia deve citarne almeno una
     nome: SpaceX
     yahoo: SPCX
     tipo: azione
     ricerca: SpaceX
     sito_ufficiale: [spacex.com]
   - id: ASML
+    parole: "asml"     # la notizia deve citarne almeno una
     nome: ASML
     yahoo: ASML
     tipo: azione
     ricerca: ASML
     sito_ufficiale: [asml.com]
   - id: AMZN
+    parole: "amazon|aws|jassy|amzn"     # la notizia deve citarne almeno una
     nome: Amazon
     yahoo: AMZN
     tipo: azione
